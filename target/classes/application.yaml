@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: ms-wallet
+  datasource:
+    url: jdbc:postgresql://localhost:26257/wallets_db?sslmode=disable
+    username: root
+    password:
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
