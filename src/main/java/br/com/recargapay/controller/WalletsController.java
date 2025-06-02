@@ -3,15 +3,18 @@ package br.com.recargapay.controller;
 import br.com.recargapay.controller.dto.BalanceResponse;
 import br.com.recargapay.controller.dto.WalletRequest;
 import br.com.recargapay.controller.mapper.BalanceMapper;
-import br.com.recargapay.entity.Balance;
+import br.com.recargapay.model.Balance;
+import br.com.recargapay.model.DailyBalance;
 import br.com.recargapay.usecase.CreateWallet;
 import br.com.recargapay.usecase.ReadBalance;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @RestController
@@ -30,8 +33,15 @@ public class WalletsController {
     }
 
     @GetMapping("/{walletId}/balance")
-    public ResponseEntity<BalanceResponse> readBalance(@PathVariable UUID walletId){
+    public ResponseEntity<BalanceResponse> readBalance(@PathVariable UUID walletId) {
         Balance balance = readBalance.execute(walletId);
         return ResponseEntity.ok(balanceMapper.toResponse(balance));
+    }
+
+    @GetMapping("/{walletId}/daily-balance")
+    public ResponseEntity<DailyBalance> readDailyBalance(@PathVariable UUID walletId,
+                                                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return ResponseEntity.ok(readBalance.execute(walletId, date));
     }
 }

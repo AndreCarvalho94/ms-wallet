@@ -16,11 +16,13 @@ CREATE TABLE balances (
 CREATE TABLE transactions (
     id UUID PRIMARY KEY,
     amount DECIMAL(19, 2) NOT NULL,
-    source_account_id UUID NOT NULL,
-    destination_account_id UUID NOT NULL,
+    source_wallet_id UUID,
+    destination_wallet_id UUID,
     type VARCHAR(255) NOT NULL,
     balance_id UUID NOT NULL,
-    FOREIGN KEY (source_account_id) REFERENCES wallets (id) ON DELETE CASCADE,
-    FOREIGN KEY (destination_account_id) REFERENCES wallets (id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (source_wallet_id) REFERENCES wallets (id) ON DELETE CASCADE,
+    FOREIGN KEY (destination_wallet_id) REFERENCES wallets (id) ON DELETE CASCADE,
     FOREIGN KEY (balance_id) REFERENCES balances (id) ON DELETE CASCADE
 );

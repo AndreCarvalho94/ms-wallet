@@ -1,7 +1,7 @@
-package br.com.recargapay.entity;
+package br.com.recargapay.model;
 
 public enum TransactionType {
     DEPOSIT,
-    WITHDRAWAL,
+    WITHDRAW,
     TRANSFER
 }

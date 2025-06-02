@@ -70,4 +70,19 @@ class WalletsControllerTest extends IntegrationTestBase {
                 .statusCode(HttpStatus.BAD_REQUEST.value())
                 .body("message", equalTo("The provided parameter is invalid: INVALID_UUID"));
     }
+
+    @Test
+    @Sql("/db/daily_balance_test.sql")
+    void shouldReadDailyBalanceSuccessfully() {
+        String date = "2025-06-02";
+
+        given()
+            .pathParam("walletId", DEFAULT_WALLET_ID)
+            .queryParam("date", date)
+        .when()
+            .get("/api/v1/wallets/{walletId}/daily-balance")
+        .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("amount", equalTo(130));
+    }
 }
