@@ -1,5 +1,6 @@
 package br.com.recargapay.usecase;
 
+import br.com.recargapay.entity.Balance;
 import br.com.recargapay.entity.Wallet;
 import br.com.recargapay.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +16,11 @@ public class CreateWallet {
 
     public void execute(UUID userId){
         Wallet wallet = new Wallet();
-        wallet.setId(userId);
+        wallet.setUserId(userId);
+
+        Balance balance = new Balance();
+        balance.setWallet(wallet);
+        wallet.setBalance(balance);
         repository.save(wallet);
     }
 }

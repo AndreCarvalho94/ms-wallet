@@ -3,7 +3,6 @@ package br.com.recargapay.controller;
 import br.com.recargapay.controller.dto.BalanceResponse;
 import br.com.recargapay.controller.dto.WalletRequest;
 import br.com.recargapay.controller.mapper.BalanceMapper;
-import br.com.recargapay.controller.mapper.WalletMapper;
 import br.com.recargapay.entity.Balance;
 import br.com.recargapay.usecase.CreateWallet;
 import br.com.recargapay.usecase.ReadBalance;

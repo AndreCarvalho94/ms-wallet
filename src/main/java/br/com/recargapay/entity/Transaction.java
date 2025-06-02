@@ -1,10 +1,8 @@
 package br.com.recargapay.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -12,20 +10,18 @@ import java.util.UUID;
 @Data
 @Entity
 @Table(name = "transactions")
+@ToString(exclude = "balance")
 public class Transaction {
+
+    @Id
     private UUID id = UUID.randomUUID();
 
     private BigDecimal amount;
 
     @ManyToOne
-    @JoinColumn(name = "source_account_id")
-    private Wallet source;
+    @JoinColumn(name = "balance_id", nullable = false)
+    private Balance balance;
 
-    @ManyToOne
-    @JoinColumn(name = "destination_account_id")
-    private Wallet destination;
-
+    @Enumerated(EnumType.STRING)
     private TransactionType type;
-
-
 }

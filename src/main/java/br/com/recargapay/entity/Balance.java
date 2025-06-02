@@ -2,6 +2,7 @@ package br.com.recargapay.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -14,19 +15,20 @@ import java.util.UUID;
 @Data
 @Entity
 @Table(name = "balances")
+@ToString(exclude = {"wallet", "transactions"})
 public class Balance {
 
+    @Id
     private UUID id = UUID.randomUUID();
 
-    private BigDecimal amount;
+    private BigDecimal amount = BigDecimal.ZERO;
 
     @OneToOne
     @JoinColumn(name = "wallet_id", nullable = false)
     private Wallet wallet;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    List<Transaction> transactions = new ArrayList<>();
-
+    @OneToMany(mappedBy = "balance", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Transaction> transactions = new ArrayList<>();
 
     @CreationTimestamp
     private LocalDateTime createdAt;

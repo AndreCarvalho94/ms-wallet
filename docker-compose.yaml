@@ -2,31 +2,25 @@ version: '3.8'
 
 services:
   cockroachdb:
-    image: cockroachdb/cockroach:v23.2.3 # Use a versão mais recente estável
+    image: cockroachdb/cockroach:v23.2.3
     container_name: cockroachdb-wallets
     ports:
-      - "26257:26257" # Porta SQL
-      - "8081:8081"   # Porta Admin UI
+      - "26257:26257"
+      - "8081:8081"
     volumes:
-      - cockroach-data:/cockroach/cockroach-data # Para persistir os dados
-      - ./init:/docker-entrypoint-initdb.d # Monta sua pasta de scripts
+      - cockroach-data:/cockroach/cockroach-data
+      - ./init:/docker-entrypoint-initdb.d
     command: start-single-node --insecure
-    healthcheck: # Healthcheck para verificar se o DB está pronto
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
       interval: 5s
       timeout: 3s
       retries: 5
-      start_period: 10s # Dê um tempo inicial para o DB levantar antes do healthcheck
+      start_period: 10s
     environment:
-      # Variáveis de ambiente, se precisar
       - COCKROACH_CHANNEL=stable
-    # entrypoint: /usr/local/bin/docker-entrypoint.sh # Default do CockroachDB
+      - COCKROACH_DATABASE=wallet_db
 
 volumes:
   cockroach-data:
     driver: local
-
-# Instruções para uso:
-# 1. Certifique-se de ter o arquivo db_init/init.sql no mesmo diretório do docker-compose.yml.
-# 2. docker-compose up -d
-# O banco de dados 'wallets_db' será criado automaticamente.
