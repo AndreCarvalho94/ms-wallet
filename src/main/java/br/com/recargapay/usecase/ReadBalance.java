@@ -34,7 +34,7 @@ public class ReadBalance {
         DailyBalance dailyBalance = new DailyBalance();
         BigDecimal totalTransfers = aggregates.getTotalTransfersIn().subtract(aggregates.getTotalTransfersOut());
         BigDecimal totalDeposits = aggregates.getTotalDeposits().subtract(aggregates.getTotalWithdrawals());
-        dailyBalance.setAmout(totalTransfers.add(totalDeposits));
+        dailyBalance.setAmount(totalTransfers.add(totalDeposits));
         return dailyBalance;
     }
 

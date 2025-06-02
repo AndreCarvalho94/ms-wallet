@@ -8,5 +8,5 @@ import java.math.BigDecimal;
 @Data
 public class DailyBalance {
 
-    private BigDecimal amout = BigDecimal.ZERO;
+    private BigDecimal amount = BigDecimal.ZERO;
 }

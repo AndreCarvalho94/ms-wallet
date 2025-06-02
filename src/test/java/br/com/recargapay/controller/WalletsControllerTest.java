@@ -26,38 +26,38 @@ class WalletsControllerTest extends IntegrationTestBase {
         walletRequest.setUserId(UUID.randomUUID());
 
         given()
-            .contentType(ContentType.JSON)
-            .body(walletRequest)
-        .when()
-            .post("/api/v1/wallets")
-        .then()
-            .statusCode(HttpStatus.CREATED.value());
+                .contentType(ContentType.JSON)
+                .body(walletRequest)
+                .when()
+                .post("/api/v1/wallets")
+                .then()
+                .statusCode(HttpStatus.CREATED.value());
     }
 
     @Test
-    @Sql("/db/insert_wallet_and_balance.sql")
+    @Sql("/db/read_balance_test.sql")
     void shouldReadBalanceSuccessfully() {
         BigDecimal amount = repository.findByWalletId(DEFAULT_WALLET_ID).get().getAmount();
         given()
-            .pathParam("walletId", DEFAULT_WALLET_ID)
-        .when()
-            .get("/api/v1/wallets/{walletId}/balance")
-        .then()
-            .statusCode(HttpStatus.OK.value())
-            .body("amount", equalTo(amount.floatValue()))
-            .body("updatedAt", notNullValue());
+                .pathParam("walletId", DEFAULT_WALLET_ID)
+                .when()
+                .get("/api/v1/wallets/{walletId}/balance")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(amount.floatValue()))
+                .body("updatedAt", notNullValue());
     }
 
     @Test
     void shouldReturnNotFoundWhenWalletDoesNotExist() {
         UUID nonExistentWalletId = UUID.randomUUID();
         given()
-            .pathParam("walletId", nonExistentWalletId)
-        .when()
-            .get("/api/v1/wallets/{walletId}/balance")
-        .then()
-            .statusCode(HttpStatus.NOT_FOUND.value())
-            .body("message", equalTo("Wallet not found with ID: " + nonExistentWalletId));
+                .pathParam("walletId", nonExistentWalletId)
+                .when()
+                .get("/api/v1/wallets/{walletId}/balance")
+                .then()
+                .statusCode(HttpStatus.NOT_FOUND.value())
+                .body("message", equalTo("Wallet not found with ID: " + nonExistentWalletId));
     }
 
     @Test
@@ -77,12 +77,48 @@ class WalletsControllerTest extends IntegrationTestBase {
         String date = "2025-06-02";
 
         given()
-            .pathParam("walletId", DEFAULT_WALLET_ID)
-            .queryParam("date", date)
-        .when()
-            .get("/api/v1/wallets/{walletId}/daily-balance")
-        .then()
-            .statusCode(HttpStatus.OK.value())
-            .body("amount", equalTo(130));
+                .pathParam("walletId", DEFAULT_WALLET_ID_2)
+                .queryParam("date", date)
+                .when()
+                .get("/api/v1/wallets/{walletId}/daily-balance")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(130.0f));
+    }
+
+    @Test
+    @Sql("/db/daily_balance_bi_directional_test.sql")
+    void shouldReturnCorrectDailyBalanceAfterBidirectionalTransfers() {
+        String date = "2025-06-02";
+
+        given()
+                .pathParam("walletId", DEFAULT_WALLET_ID_3)
+                .queryParam("date", date)
+                .when()
+                .get("/api/v1/wallets/{walletId}/daily-balance")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(450.0f));
+
+        given()
+                .pathParam("walletId", DEFAULT_WALLET_ID_4)
+                .queryParam("date", date)
+                .when()
+                .get("/api/v1/wallets/{walletId}/daily-balance")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(350.0f));
+    }
+
+    @Test
+    void shouldReturnWalletNotFoundWhenDailyBalanceWalletDoesNotExist() {
+        UUID nonExistentWalletId = UUID.randomUUID();
+        given()
+                .pathParam("walletId", nonExistentWalletId)
+                .when()
+                .get("/api/v1/wallets/{walletId}/daily-balance")
+                .then()
+                .statusCode(HttpStatus.NOT_FOUND.value())
+                .body("message", equalTo("Wallet not found with ID: " + nonExistentWalletId));
     }
 }
