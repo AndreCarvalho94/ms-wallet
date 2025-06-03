@@ -1,6 +1,7 @@
 package br.com.recargapay.controller;
 
 import br.com.recargapay.controller.dto.DepositFundsRequest;
+import br.com.recargapay.controller.dto.TransferFundsRequest;
 import br.com.recargapay.controller.dto.WalletRequest;
 import br.com.recargapay.controller.dto.WithdrawFundsRequest;
 import br.com.recargapay.model.Wallet;
@@ -250,6 +251,23 @@ class WalletsControllerTest extends IntegrationTestBase {
     }
 
     @Test
+    void shouldReturnUnprocessableEntityWhenWithdrawingNegativeAmount() {
+        Wallet wallet = createWallet.execute(UUID.randomUUID());
+        BigDecimal negativeAmount = BigDecimal.valueOf(-10.00);
+        WithdrawFundsRequest withdrawFundsRequest = new WithdrawFundsRequest(negativeAmount);
+
+        given()
+                .pathParam("walletId", wallet.getId())
+                .contentType(ContentType.JSON)
+                .body(withdrawFundsRequest)
+                .when()
+                .post("/api/v1/wallets/{walletId}/withdraw")
+                .then()
+                .statusCode(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .body("message", equalTo("Invalid transaction amount. Amount must be greater than zero."));
+    }
+
+    @Test
     void shouldReturnUnprocessableEntityWhenWithdrawingInvalidAmount() {
         Wallet wallet = createWallet.execute(UUID.randomUUID());
         BigDecimal invalidAmount = BigDecimal.TEN;
@@ -318,6 +336,83 @@ class WalletsControllerTest extends IntegrationTestBase {
                 .then()
                 .statusCode(HttpStatus.OK.value())
                 .body("amount", equalTo(0f));
+    }
+
+    @Test
+    void shouldHandleConcurrentTransfersBetweenTwoWalletsSafely() throws InterruptedException {
+
+        Wallet walletA = createWallet.execute(UUID.randomUUID());
+        Wallet walletB = createWallet.execute(UUID.randomUUID());
+
+        depositFunds.execute(walletA.getId(), DEPOSIT_AMOUNT.multiply(BigDecimal.valueOf(THREAD_COUNT)));
+        depositFunds.execute(walletB.getId(), DEPOSIT_AMOUNT.multiply(BigDecimal.valueOf(THREAD_COUNT)));
+
+        CountDownLatch latch = new CountDownLatch(THREAD_COUNT);
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+
+        for (int i = 0; i < THREAD_COUNT; i++) {
+            UUID source = (i % 2 == 0) ? walletA.getId() : walletB.getId();
+            UUID destination = (i % 2 == 0) ? walletB.getId() : walletA.getId();
+
+            executor.submit(() -> {
+                try {
+                    TransferFundsRequest request = new TransferFundsRequest(source, destination, DEPOSIT_AMOUNT);
+                    given()
+                            .contentType("application/json")
+                            .body(request)
+                            .when()
+                            .post("/api/v1/wallets/transfer")
+                            .then()
+                            .statusCode(HttpStatus.OK.value());
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+
+        BigDecimal expectedFinalBalance = DEPOSIT_AMOUNT.multiply(BigDecimal.valueOf(THREAD_COUNT));
+
+        given()
+                .pathParam("walletId", walletA.getId())
+                .when()
+                .get("/api/v1/wallets/{walletId}/balance")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(expectedFinalBalance.floatValue()));
+
+        given()
+                .pathParam("walletId", walletB.getId())
+                .when()
+                .get("/api/v1/wallets/{walletId}/balance")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(expectedFinalBalance.floatValue()));
+    }
+
+    @Test
+    void shouldReturnUnprocessableEntityWhenInsufficientFunds() {
+        Wallet sourceWallet = createWallet.execute(UUID.randomUUID());
+        Wallet destinationWallet = createWallet.execute(UUID.randomUUID());
+
+        depositFunds.execute(sourceWallet.getId(), BigDecimal.valueOf(50.00));
+
+        BigDecimal transferAmount = BigDecimal.valueOf(100.00);
+        TransferFundsRequest transferFundsRequest = new TransferFundsRequest(
+                sourceWallet.getId(),
+                destinationWallet.getId(),
+                transferAmount
+        );
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(transferFundsRequest)
+                .when()
+                .post("/api/v1/wallets/transfer")
+                .then()
+                .statusCode(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .body("message", equalTo("Insufficient funds in source wallet."));
     }
 
 

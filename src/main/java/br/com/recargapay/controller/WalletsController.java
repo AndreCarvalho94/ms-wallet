@@ -6,10 +6,7 @@ import br.com.recargapay.controller.mapper.WalletMapper;
 import br.com.recargapay.model.Balance;
 import br.com.recargapay.model.DailyBalance;
 import br.com.recargapay.model.Wallet;
-import br.com.recargapay.usecase.CreateWallet;
-import br.com.recargapay.usecase.DepositFunds;
-import br.com.recargapay.usecase.ReadBalance;
-import br.com.recargapay.usecase.WithdrawFunds;
+import br.com.recargapay.usecase.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -31,6 +28,7 @@ public class WalletsController {
     private final DepositFunds depositFunds;
     private final WithdrawFunds withdrawFunds;
     private final WalletMapper walletMapper;
+    private final TransferFunds transferFunds;
 
     @PostMapping
     public ResponseEntity<WalletResponse> createWallet(@RequestBody @Validated WalletRequest walletRequest) {
@@ -61,5 +59,11 @@ public class WalletsController {
     public ResponseEntity<BalanceResponse> withdrawFunds(@PathVariable UUID walletId, @RequestBody WithdrawFundsRequest withdrawFundsRequest) {
         Balance balance = withdrawFunds.execute(walletId, withdrawFundsRequest.getAmount());
         return ResponseEntity.ok().body(balanceMapper.toResponse(balance));
+    }
+
+    @PostMapping("/transfer")
+    public ResponseEntity<BalanceResponse> transferFunds(@RequestBody TransferFundsRequest transferFundsRequest) {
+        Balance updatedBalance = transferFunds.execute(transferFundsRequest.getSourceWalletId(), transferFundsRequest.getDestinationWalletId(), transferFundsRequest.getAmount());
+        return ResponseEntity.ok(balanceMapper.toResponse(updatedBalance));
     }
 }

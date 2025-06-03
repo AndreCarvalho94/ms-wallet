@@ -47,8 +47,7 @@ public class DepositFunds {
                     transaction.setDestination(wallet);
                     transaction.setAmount(amount);
                     transaction.setType(TransactionType.DEPOSIT);
-                    transaction.setBalance(balance);
-
+                    transaction.setDestinationResultingBalance(balance.getAmount());
                     transactionRepository.save(transaction);
                     return balanceRepository.save(balance);
                 })

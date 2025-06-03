@@ -2,7 +2,6 @@ package br.com.recargapay.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -13,7 +12,6 @@ import java.util.UUID;
 @Data
 @Entity
 @Table(name = "transactions")
-@ToString(exclude = "balance")
 public class Transaction {
 
     @Id
@@ -21,9 +19,9 @@ public class Transaction {
 
     private BigDecimal amount;
 
-    @ManyToOne
-    @JoinColumn(name = "balance_id", nullable = false)
-    private Balance balance;
+    private BigDecimal sourceResultingBalance;
+
+    private BigDecimal destinationResultingBalance;
 
     @Enumerated(EnumType.STRING)
     private TransactionType type;
@@ -41,4 +39,5 @@ public class Transaction {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
 }

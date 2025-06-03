@@ -45,13 +45,12 @@ public class WithdrawFunds {
                     }
 
                     balance.setAmount(balance.getAmount().subtract(amount));
-
                     Transaction transaction = new Transaction();
                     log.info("Creating transaction id {} for withdraw: walletId={}, amount={}", transaction.getId(), walletId, amount);
                     transaction.setSource(wallet);
                     transaction.setAmount(amount);
                     transaction.setType(TransactionType.WITHDRAW);
-                    transaction.setBalance(balance);
+                    transaction.setSourceResultingBalance(balance.getAmount());
 
                     transactionRepository.save(transaction);
                     return balanceRepository.save(balance);
