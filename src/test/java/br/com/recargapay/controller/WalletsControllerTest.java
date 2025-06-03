@@ -9,6 +9,7 @@ import br.com.recargapay.repository.BalanceRepository;
 import br.com.recargapay.usecase.CreateWallet;
 import br.com.recargapay.usecase.DepositFunds;
 import io.restassured.http.ContentType;
+import io.restassured.response.ValidatableResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -415,5 +416,127 @@ class WalletsControllerTest extends IntegrationTestBase {
                 .body("message", equalTo("Insufficient funds in source wallet."));
     }
 
+    @Test
+    void shouldCreateIdempotentWallet() {
+        String idempotencyKey = UUID.randomUUID().toString();
+        UUID userId = UUID.randomUUID();
 
+        WalletRequest request = new WalletRequest();
+        request.setUserId(userId);
+
+        ValidatableResponse firstResponse = given()
+                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", idempotencyKey)
+                .body(request)
+                .when()
+                .post("/api/v1/wallets")
+                .then()
+                .statusCode(HttpStatus.CREATED.value())
+                .body("id", notNullValue());
+
+        String firstId = firstResponse.extract().path("id");
+
+        given()
+                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", idempotencyKey)
+                .body(request)
+                .when()
+                .post("/api/v1/wallets")
+                .then()
+                .statusCode(HttpStatus.CREATED.value())
+                .body("id", equalTo(firstId));
+    }
+
+    @Test
+    void shouldPerformIdempotentDeposit() {
+        String idempotencyKey = UUID.randomUUID().toString();
+        BigDecimal depositAmount = BigDecimal.TEN;
+        DepositFundsRequest depositFundsRequest = new DepositFundsRequest(depositAmount);
+        Wallet wallet = createWallet.execute(UUID.randomUUID());
+        given()
+                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", idempotencyKey)
+                .pathParam("walletId", wallet.getId())
+                .body(depositFundsRequest)
+                .when()
+                .post("/api/v1/wallets/{walletId}/deposit")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(depositAmount.floatValue()));
+
+        given()
+                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", idempotencyKey)
+                .pathParam("walletId", wallet.getId())
+                .body(depositFundsRequest)
+                .when()
+                .post("/api/v1/wallets/{walletId}/deposit")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(depositAmount.floatValue()));
+    }
+
+    @Test
+    void shouldPerformIdempotentWithdraw() {
+        String idempotencyKey = UUID.randomUUID().toString();
+        BigDecimal withdrawAmount = BigDecimal.TEN;
+        WithdrawFundsRequest withdrawFundsRequest = new WithdrawFundsRequest(withdrawAmount);
+        Wallet wallet = createWallet.execute(UUID.randomUUID());
+        depositFunds.execute(wallet.getId(), withdrawAmount);
+
+        given()
+                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", idempotencyKey)
+                .pathParam("walletId", wallet.getId())
+                .body(withdrawFundsRequest)
+                .when()
+                .post("/api/v1/wallets/{walletId}/withdraw")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(BigDecimal.ZERO.floatValue()));
+
+        given()
+                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", idempotencyKey)
+                .pathParam("walletId", wallet.getId())
+                .body(withdrawFundsRequest)
+                .when()
+                .post("/api/v1/wallets/{walletId}/withdraw")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(BigDecimal.ZERO.floatValue()));
+    }
+
+    @Test
+    void shouldPerformIdempotentTransfer() {
+        String idempotencyKey = UUID.randomUUID().toString();
+        BigDecimal transferAmount = BigDecimal.TEN;
+        Wallet sourceWallet = createWallet.execute(UUID.randomUUID());
+        Wallet destinationWallet = createWallet.execute(UUID.randomUUID());
+        depositFunds.execute(sourceWallet.getId(), transferAmount);
+
+        TransferFundsRequest transferFundsRequest = new TransferFundsRequest(
+                sourceWallet.getId(),
+                destinationWallet.getId(),
+                transferAmount
+        );
+
+        given()
+                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", idempotencyKey)
+                .body(transferFundsRequest)
+                .when()
+                .post("/api/v1/wallets/transfer")
+                .then()
+                .statusCode(HttpStatus.OK.value());
+
+        given()
+                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", idempotencyKey)
+                .body(transferFundsRequest)
+                .when()
+                .post("/api/v1/wallets/transfer")
+                .then()
+                .statusCode(HttpStatus.OK.value());
+    }
 }

@@ -21,6 +21,22 @@ services:
       - COCKROACH_CHANNEL=stable
       - COCKROACH_DATABASE=wallet_db
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis-wallets
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
 volumes:
   cockroach-data:
+    driver: local
+  redis-data:
     driver: local

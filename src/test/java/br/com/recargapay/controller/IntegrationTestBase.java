@@ -9,6 +9,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.CockroachContainer;
+import org.testcontainers.containers.GenericContainer;
 
 import java.util.UUID;
 
@@ -30,6 +31,9 @@ public abstract class IntegrationTestBase {
             .withCommand("start-single-node --insecure")
             .withExposedPorts(26257);
 
+    static GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine")
+            .withExposedPorts(6379);
+
 
     @BeforeEach
     protected void setUpEach() {
@@ -46,17 +50,21 @@ public abstract class IntegrationTestBase {
         registry.add("spring.flyway.baseline-on-migrate", () -> "true");
         registry.add("spring.sql.init.data-locations", () -> "classpath:/db/database_creation.sql");
         registry.add("spring.sql.init.mode", () -> "always");
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
     }
 
 
     @BeforeAll
     static void setUp() {
         cockroach.start();
+        redis.start();
     }
 
     @AfterAll
     static void tearDown() {
         cockroach.stop();
+        redis.stop();
     }
 
 }
