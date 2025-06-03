@@ -26,3 +26,9 @@ CREATE TABLE transactions (
     FOREIGN KEY (destination_wallet_id) REFERENCES wallets (id) ON DELETE CASCADE,
     FOREIGN KEY (balance_id) REFERENCES balances (id) ON DELETE CASCADE
 );
+
+ALTER TABLE transactions
+ADD CONSTRAINT chk_transaction_amount_positive CHECK (amount >= 0);
+
+ALTER TABLE balances
+ADD CONSTRAINT chk_balance_amount_positive CHECK (amount >= 0);

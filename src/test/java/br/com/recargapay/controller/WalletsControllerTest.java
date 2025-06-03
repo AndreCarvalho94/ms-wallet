@@ -1,5 +1,6 @@
 package br.com.recargapay.controller;
 
+import br.com.recargapay.controller.dto.DepositFundsRequest;
 import br.com.recargapay.controller.dto.WalletRequest;
 import br.com.recargapay.repository.BalanceRepository;
 import io.restassured.http.ContentType;
@@ -120,5 +121,63 @@ class WalletsControllerTest extends IntegrationTestBase {
                 .then()
                 .statusCode(HttpStatus.NOT_FOUND.value())
                 .body("message", equalTo("Wallet not found with ID: " + nonExistentWalletId));
+    }
+
+    @Test
+    @Sql("/db/deposit_funds_test.sql")
+    void shouldDepositFundsMultipleTimesSuccessfully() {
+        BigDecimal amount = BigDecimal.valueOf(100.00);
+        DepositFundsRequest depositFundsRequest = new DepositFundsRequest(amount);
+
+        given()
+                .pathParam("walletId", DEFAULT_WALLET_ID_5)
+                .contentType(ContentType.JSON)
+                .body(depositFundsRequest)
+                .when()
+                .post("/api/v1/wallets/{walletId}/deposit")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(depositFundsRequest.getAmount().floatValue()));
+
+        given()
+                .pathParam("walletId", DEFAULT_WALLET_ID_5)
+                .contentType(ContentType.JSON)
+                .body(depositFundsRequest)
+                .when()
+                .post("/api/v1/wallets/{walletId}/deposit")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(amount.multiply(BigDecimal.TWO).floatValue()));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenDepositingToNonExistentWallet() {
+        UUID nonExistentWalletId = UUID.randomUUID();
+        DepositFundsRequest depositFundsRequest = new DepositFundsRequest(BigDecimal.valueOf(100.00));
+
+        given()
+                .pathParam("walletId", nonExistentWalletId)
+                .contentType(ContentType.JSON)
+                .body(depositFundsRequest)
+                .when()
+                .post("/api/v1/wallets/{walletId}/deposit")
+                .then()
+                .statusCode(HttpStatus.NOT_FOUND.value())
+                .body("message", equalTo("Wallet not found with ID: " + nonExistentWalletId));
+    }
+
+    @Test
+    void shouldReturnUnprocessableEntityWhenDepositingWithInvalidAmount() {
+        DepositFundsRequest depositFundsRequest = new DepositFundsRequest(BigDecimal.ZERO);
+
+        given()
+                .pathParam("walletId", DEFAULT_WALLET_ID)
+                .contentType(ContentType.JSON)
+                .body(depositFundsRequest)
+                .when()
+                .post("/api/v1/wallets/{walletId}/deposit")
+                .then()
+                .statusCode(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .body("message", equalTo("Invalid transaction amount. Amount must be greater than zero."));
     }
 }

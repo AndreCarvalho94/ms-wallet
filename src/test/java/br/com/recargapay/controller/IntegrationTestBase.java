@@ -19,6 +19,8 @@ public abstract class IntegrationTestBase {
     protected static final UUID DEFAULT_WALLET_ID_2 = UUID.fromString("21111111-1111-1111-1111-111111111111");
     protected static final UUID DEFAULT_WALLET_ID_3 = UUID.fromString("31111111-1111-1111-1111-111111111111");
     protected static final UUID DEFAULT_WALLET_ID_4 = UUID.fromString("42222222-2222-2222-2222-222222222222");
+    protected static final UUID DEFAULT_WALLET_ID_5 = UUID.fromString("51111111-1111-1111-1111-111111111111");
+
 
     @LocalServerPort
     private Integer port;
