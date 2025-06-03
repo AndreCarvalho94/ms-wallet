@@ -1,5 +1,6 @@
 package br.com.recargapay.usecase;
 
+import br.com.recargapay.events.TransferFundsEvent;
 import br.com.recargapay.exceptions.InvalidTransactionAmountException;
 import br.com.recargapay.exceptions.WalletNotFoundException;
 import br.com.recargapay.model.Balance;
@@ -10,6 +11,7 @@ import br.com.recargapay.repository.BalanceRepository;
 import br.com.recargapay.repository.TransactionRepository;
 import br.com.recargapay.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -27,6 +29,8 @@ public class TransferFunds {
     private final BalanceRepository balanceRepository;
     private final RetryTemplate retryTemplate;
     private final TransactionTemplate transactionTemplate;
+    private final ApplicationEventPublisher eventPublisher;
+
 
     public Balance execute(UUID sourceWalletId, UUID targetWalletId, BigDecimal amount) {
         return retryTemplate.execute(context ->
@@ -56,8 +60,12 @@ public class TransferFunds {
                             transaction.setSourceResultingBalance(sourceNewBalance);
                             transaction.setDestinationResultingBalance(destinationNewBalance);
                             balanceRepository.saveAll(List.of(sourceBalance, destinationBalance));
-                            transactionRepository.save(transaction);
-
+                    Transaction savedTransaction = transactionRepository.save(transaction);
+                    eventPublisher.publishEvent(new TransferFundsEvent(transaction.getId(),
+                                    sourceWalletId,
+                                    targetWalletId,
+                                    amount,
+                                    savedTransaction.getCreatedAt()));
                             return sourceBalance;
                         }
                 ));
