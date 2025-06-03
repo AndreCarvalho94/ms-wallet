@@ -14,13 +14,13 @@ public class CreateWallet {
 
     private final WalletRepository repository;
 
-    public void execute(UUID userId){
+    public Wallet execute(UUID userId){
         Wallet wallet = new Wallet();
         wallet.setUserId(userId);
 
         Balance balance = new Balance();
         balance.setWallet(wallet);
         wallet.setBalance(balance);
-        repository.save(wallet);
+        return repository.save(wallet);
     }
 }

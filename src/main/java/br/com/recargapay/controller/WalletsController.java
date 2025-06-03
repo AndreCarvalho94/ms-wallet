@@ -1,12 +1,11 @@
 package br.com.recargapay.controller;
 
-import br.com.recargapay.controller.dto.BalanceResponse;
-import br.com.recargapay.controller.dto.DepositFundsRequest;
-import br.com.recargapay.controller.dto.WalletRequest;
-import br.com.recargapay.controller.dto.WithdrawFundsRequest;
+import br.com.recargapay.controller.dto.*;
 import br.com.recargapay.controller.mapper.BalanceMapper;
+import br.com.recargapay.controller.mapper.WalletMapper;
 import br.com.recargapay.model.Balance;
 import br.com.recargapay.model.DailyBalance;
+import br.com.recargapay.model.Wallet;
 import br.com.recargapay.usecase.CreateWallet;
 import br.com.recargapay.usecase.DepositFunds;
 import br.com.recargapay.usecase.ReadBalance;
@@ -31,11 +30,12 @@ public class WalletsController {
     private final BalanceMapper balanceMapper;
     private final DepositFunds depositFunds;
     private final WithdrawFunds withdrawFunds;
+    private final WalletMapper walletMapper;
 
     @PostMapping
-    public ResponseEntity<Void> createWallet(@RequestBody @Validated WalletRequest walletRequest) {
-        createWallet.execute(walletRequest.getUserId());
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    public ResponseEntity<WalletResponse> createWallet(@RequestBody @Validated WalletRequest walletRequest) {
+        Wallet wallet = createWallet.execute(walletRequest.getUserId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(walletMapper.toResponse(wallet));
     }
 
     @GetMapping("/{walletId}/balance")

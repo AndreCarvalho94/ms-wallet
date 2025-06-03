@@ -20,6 +20,7 @@ public abstract class IntegrationTestBase {
     protected static final UUID DEFAULT_WALLET_ID_3 = UUID.fromString("31111111-1111-1111-1111-111111111111");
     protected static final UUID DEFAULT_WALLET_ID_4 = UUID.fromString("42222222-2222-2222-2222-222222222222");
     protected static final UUID DEFAULT_WALLET_ID_5 = UUID.fromString("51111111-1111-1111-1111-111111111111");
+    protected static final UUID DEFAULT_WALLET_ID_6 = UUID.fromString("61111111-1111-1111-1111-111111111111");
 
 
     @LocalServerPort
@@ -31,7 +32,7 @@ public abstract class IntegrationTestBase {
 
 
     @BeforeEach
-    void setUpEach() {
+    protected void setUpEach() {
         RestAssured.baseURI = "http://localhost:" + port;
     }
 

@@ -9,17 +9,16 @@ import br.com.recargapay.model.Wallet;
 import br.com.recargapay.repository.BalanceRepository;
 import br.com.recargapay.repository.TransactionRepository;
 import br.com.recargapay.repository.WalletRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.CannotSerializeTransactionException;
-import org.springframework.dao.TransientDataAccessException;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DepositFunds {
@@ -27,30 +26,32 @@ public class DepositFunds {
     private final TransactionRepository transactionRepository;
     private final WalletRepository walletRepository;
     private final BalanceRepository balanceRepository;
+    private final RetryTemplate retryTemplate;
+    private final TransactionTemplate transactionTemplate;
 
-    @Retryable(
-            retryFor = TransientDataAccessException.class,
-            backoff = @Backoff(delay = 200)
-    )
-    @Transactional
     public Balance execute(UUID walletId, BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new InvalidTransactionAmountException();
-        }
-        Wallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new WalletNotFoundException(walletId));
+        return retryTemplate.execute(context ->
+                transactionTemplate.execute(status -> {
+                    if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+                        throw new InvalidTransactionAmountException();
+                    }
 
-        Balance balance = wallet.getBalance();
+                    Wallet wallet = walletRepository.findById(walletId)
+                            .orElseThrow(() -> new WalletNotFoundException(walletId));
 
-        balance.setAmount(balance.getAmount().add(amount));
+                    Balance balance = wallet.getBalance();
+                    balance.setAmount(balance.getAmount().add(amount));
 
-        Transaction transaction = new Transaction();
-        transaction.setDestination(wallet);
-        transaction.setAmount(amount);
-        transaction.setType(TransactionType.DEPOSIT);
-        transaction.setBalance(balance);
+                    Transaction transaction = new Transaction();
+                    log.info("Creating transaction id {} for deposit: walletId={}, amount={}", transaction.getId(), walletId, amount);
+                    transaction.setDestination(wallet);
+                    transaction.setAmount(amount);
+                    transaction.setType(TransactionType.DEPOSIT);
+                    transaction.setBalance(balance);
 
-        transactionRepository.save(transaction);
-        return balanceRepository.save(balance);
+                    transactionRepository.save(transaction);
+                    return balanceRepository.save(balance);
+                })
+        );
     }
 }

@@ -2,7 +2,11 @@ package br.com.recargapay.controller;
 
 import br.com.recargapay.controller.dto.DepositFundsRequest;
 import br.com.recargapay.controller.dto.WalletRequest;
+import br.com.recargapay.controller.dto.WithdrawFundsRequest;
+import br.com.recargapay.model.Wallet;
 import br.com.recargapay.repository.BalanceRepository;
+import br.com.recargapay.usecase.CreateWallet;
+import br.com.recargapay.usecase.DepositFunds;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +15,9 @@ import org.springframework.test.context.jdbc.Sql;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
@@ -20,6 +27,16 @@ class WalletsControllerTest extends IntegrationTestBase {
 
     @Autowired
     private BalanceRepository repository;
+
+    @Autowired
+    private CreateWallet createWallet;
+
+    @Autowired
+    private DepositFunds depositFunds;
+
+    private static final int THREAD_COUNT = 10;
+    private static final BigDecimal DEPOSIT_AMOUNT = BigDecimal.TEN;
+    private static final BigDecimal WITHDRAW_AMOUNT = BigDecimal.TEN;
 
     @Test
     void shouldCreateWalletSuccessfully() {
@@ -180,4 +197,128 @@ class WalletsControllerTest extends IntegrationTestBase {
                 .statusCode(HttpStatus.UNPROCESSABLE_ENTITY.value())
                 .body("message", equalTo("Invalid transaction amount. Amount must be greater than zero."));
     }
+
+    @Test
+    void shouldHandleConcurrentDepositsSafely() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(THREAD_COUNT);
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+        DepositFundsRequest depositFundsRequest = new DepositFundsRequest(DEPOSIT_AMOUNT);
+        Wallet wallet = createWallet.execute(UUID.randomUUID());
+        for (int i = 0; i < THREAD_COUNT; i++) {
+            executor.submit(() -> {
+                try {
+                    given()
+                            .contentType("application/json")
+                            .pathParam("walletId", wallet.getId())
+                            .body(depositFundsRequest)
+                            .when()
+                            .post("/api/v1/wallets/{walletId}/deposit")
+                            .then()
+                            .statusCode(HttpStatus.OK.value());
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+
+        given()
+                .pathParam("walletId", wallet.getId())
+                .when()
+                .get("/api/v1/wallets/{walletId}/balance")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(THREAD_COUNT * DEPOSIT_AMOUNT.floatValue()));
+    }
+
+    @Test
+    @Sql("/db/withdraw_funds_test.sql")
+    void shouldWithdrawFundsSuccessfully() {
+        BigDecimal amount = BigDecimal.valueOf(50.00);
+        WithdrawFundsRequest depositFundsRequest = new WithdrawFundsRequest(amount);
+
+        given()
+                .pathParam("walletId", DEFAULT_WALLET_ID_6)
+                .contentType(ContentType.JSON)
+                .body(depositFundsRequest)
+                .when()
+                .post("/api/v1/wallets/{walletId}/withdraw")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(BigDecimal.ZERO.floatValue()));
+    }
+
+    @Test
+    void shouldReturnUnprocessableEntityWhenWithdrawingInvalidAmount() {
+        Wallet wallet = createWallet.execute(UUID.randomUUID());
+        BigDecimal invalidAmount = BigDecimal.TEN;
+        WithdrawFundsRequest withdrawFundsRequest = new WithdrawFundsRequest(invalidAmount);
+
+        given()
+                .pathParam("walletId", wallet.getId())
+                .contentType(ContentType.JSON)
+                .body(withdrawFundsRequest)
+                .when()
+                .post("/api/v1/wallets/{walletId}/withdraw")
+                .then()
+                .statusCode(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .body("message", equalTo("Insufficient funds for withdrawal."));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenWithdrawingFromNonExistentWallet() {
+        UUID nonExistentWalletId = UUID.randomUUID();
+        BigDecimal amount = BigDecimal.valueOf(50.00);
+        WithdrawFundsRequest withdrawFundsRequest = new WithdrawFundsRequest(amount);
+
+        given()
+                .pathParam("walletId", nonExistentWalletId)
+                .contentType(ContentType.JSON)
+                .body(withdrawFundsRequest)
+                .when()
+                .post("/api/v1/wallets/{walletId}/withdraw")
+                .then()
+                .statusCode(HttpStatus.NOT_FOUND.value())
+                .body("message", equalTo("Wallet not found with ID: " + nonExistentWalletId));
+    }
+
+    @Test
+    void shouldHandleConcurrentWithdrawalsSafely() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(THREAD_COUNT);
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+        WithdrawFundsRequest withdrawRequest = new WithdrawFundsRequest(WITHDRAW_AMOUNT);
+
+        Wallet wallet = createWallet.execute(UUID.randomUUID());
+        depositFunds.execute(wallet.getId(), BigDecimal.valueOf(THREAD_COUNT).multiply(WITHDRAW_AMOUNT));
+
+        for (int i = 0; i < THREAD_COUNT; i++) {
+            executor.submit(() -> {
+                try {
+                    given()
+                            .contentType("application/json")
+                            .pathParam("walletId", wallet.getId())
+                            .body(withdrawRequest)
+                            .when()
+                            .post("/api/v1/wallets/{walletId}/withdraw")
+                            .then()
+                            .statusCode(HttpStatus.OK.value());
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+
+        given()
+                .pathParam("walletId", wallet.getId())
+                .when()
+                .get("/api/v1/wallets/{walletId}/balance")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("amount", equalTo(0f));
+    }
+
+
 }

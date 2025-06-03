@@ -6,6 +6,7 @@ import br.com.recargapay.exceptions.WalletNotFoundException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -43,10 +44,10 @@ public class Handler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorDto);
     }
 
-    @ExceptionHandler(TransientDataAccessException.class)
+    @ExceptionHandler({TransientDataAccessException.class, ObjectOptimisticLockingFailureException.class})
     public ResponseEntity<ErrorDto> handleTransientDataAccessException(TransientDataAccessException ex) {
         ErrorDto errorDto = new ErrorDto();
-        errorDto.setMessage("A transient database error occurred. Please try again.");
+        errorDto.setMessage(ex.getMessage());
         errorDto.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
         errorDto.setTimestamp(LocalDateTime.now());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorDto);
